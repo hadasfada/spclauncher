@@ -863,7 +863,7 @@ class Launcher(QMainWindow):
     def _apply_stylesheet(self):
         self.setStyleSheet("""
             /* ── Global ─────────────────────────────────────── */
-            * { font-family: 'Unbounded', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; }
+            * { font-family: 'Unbounded', 'Helvetica Neue', 'Segoe UI', Arial, sans-serif; }
             QWidget { background-color: transparent; color: #d8d8d8; }
 
             /* ── Login card ─────────────────────────────────── */
@@ -877,7 +877,7 @@ class Launcher(QMainWindow):
             #usernameInput:hover { border: 2px solid rgba(90, 120, 90, 160); }
 
             /* ── Buttons ─────────────────────────────────────── */
-            QPushButton { font-family: 'Unbounded', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; }
+            QPushButton { font-family: 'Unbounded', 'Helvetica Neue', 'Segoe UI', Arial, sans-serif; }
 
             #playBtn { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #4a6a4a, stop:1 #5a7a5a); color: white; border: none; border-radius: 10px; font-size: 17px; font-weight: 700; letter-spacing: 1px; text-align: center; }
             #playBtn:hover { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #5a8a5a, stop:1 #6a9a6a); }
@@ -963,7 +963,7 @@ def main():
     if font_id != -1:
         font = QFont(QFontDatabase.applicationFontFamilies(font_id)[0], 10)
     else:
-        font = QFont("Segoe UI", 10)
+        font = QFont("Helvetica Neue", 10)
     app.setFont(font)
 
     launcher = Launcher()

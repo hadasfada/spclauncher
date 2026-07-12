@@ -35,19 +35,12 @@ def _log(msg):
 
 
 def get_java_path():
-    """Return the path to the bundled Java executable, or None if unavailable."""
-    runtime = Path(MC_DIR) / "runtime"
-    if system == "Windows":
-        java = runtime / "java-runtime-delta/windows-x64/java-runtime-delta/bin/javaw.exe"
-    elif system == "Darwin":
-        arch = platform.machine()
-        if arch == "arm64":
-            java = runtime / "java-runtime-delta/macos-arm64/java-runtime-delta/jre.bundle/Contents/Home/bin/java"
-        else:
-            java = runtime / "java-runtime-delta/macos-x64/java-runtime-delta/jre.bundle/Contents/Home/bin/java"
-    else:
-        java = runtime / "java-runtime-delta/linux-x64/java-runtime-delta/bin/java"
-    return str(java) if java.exists() else None
+    """Return the path to the bundled Java executable using the launcher lib."""
+    try:
+        path = minecraft_launcher_lib.runtime.get_executable_path("java-runtime-delta", MC_DIR)
+        return path
+    except Exception:
+        return None
 
 
 def find_neoforge():
@@ -92,7 +85,16 @@ class InstallWorker(QThread):
             MC_VERSION, MC_DIR, callback=callback
         )
 
-        # Step 2: Install NeoForge (if not already present)
+        # Step 2: Install JVM runtime
+        emit("Installing Java runtime...")
+        try:
+            minecraft_launcher_lib.runtime.install_jvm_runtime(
+                "java-runtime-delta", MC_DIR, callback=callback
+            )
+        except Exception as e:
+            emit(f"Java runtime install failed: {e}")
+
+        # Step 3: Install NeoForge (if not already present)
         neoforge = minecraft_launcher_lib.mod_loader.get_mod_loader("neoforge")
         existing_neoforge = find_neoforge()
 
@@ -102,7 +104,7 @@ class InstallWorker(QThread):
         else:
             emit(f"NeoForge {existing_neoforge} found")
 
-        # Step 3: Sync mods from server
+        # Step 4: Sync mods from server
         if self.server_url and self.secret_key:
             try:
                 self._sync_mods(emit)
@@ -288,7 +290,11 @@ class LaunchWorker(QThread):
             )
             _log(f"cmd={cmd}")
 
-            self._process = subprocess.Popen(cmd, cwd=MC_DIR)
+            popen_kwargs = {"cwd": MC_DIR}
+            if system == "Windows":
+                popen_kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+
+            self._process = subprocess.Popen(cmd, **popen_kwargs)
             _log(f"subprocess started pid={self._process.pid}")
 
             self.process_started.emit(self._process)
