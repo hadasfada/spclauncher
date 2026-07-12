@@ -1,0 +1,17 @@
+[project]
+name = "minecraft-launcher"
+version = "1.0.0"
+description = "A minimalistic Minecraft launcher with fluid animations"
+requires-python = ">=3.10"
+dependencies = [
+    "PyQt6>=6.6.0",
+    "minecraft-launcher-lib>=4.7",
+    "requests>=2.31",
+]
+
+[project.scripts]
+minecraft-launcher = "launcher.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
