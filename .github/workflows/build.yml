@@ -42,8 +42,10 @@ jobs:
       - name: Build
         run: pyinstaller spectercraft.spec --noconfirm
 
-      - name: Package
-        run: cd dist && zip -r SpecterCraft-macOS.zip SpecterCraft.app
+      - name: Package .app
+        run: |
+          cd dist
+          ditto -c -k --sequesterRsrc --keepParent SpecterCraft.app SpecterCraft-macOS.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
