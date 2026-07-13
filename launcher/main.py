@@ -1,4 +1,6 @@
 import json
+import os
+import platform
 import sys
 import threading
 import traceback
@@ -955,14 +957,22 @@ def main():
     sys.excepthook = _excepthook
     threading.excepthook = _thread_excepthook
 
+    # Force software rendering on Linux to avoid OpenGL segfaults
+    if platform.system() == "Linux":
+        os.environ.setdefault("QT_QPA_PLATFORM", "xcb")
+        os.environ.setdefault("QT_QUICK_BACKEND", "software")
+
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
 
-    # Load the Unbounded font, fall back to Segoe UI
-    font_id = QFontDatabase.addApplicationFont(str(FONT_PATH))
-    if font_id != -1:
-        font = QFont(QFontDatabase.applicationFontFamilies(font_id)[0], 10)
-    else:
+    # Load the Unbounded font, fall back to system font
+    try:
+        font_id = QFontDatabase.addApplicationFont(str(FONT_PATH))
+        if font_id != -1:
+            font = QFont(QFontDatabase.applicationFontFamilies(font_id)[0], 10)
+        else:
+            font = QFont("Helvetica Neue", 10)
+    except Exception:
         font = QFont("Helvetica Neue", 10)
     app.setFont(font)
 
