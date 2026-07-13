@@ -1,15 +1,16 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 import platform
+from pathlib import Path
 
 system = platform.system()
 
 if system == "Windows":
     MEI_TEMP = '%APPDATA%\\SpecterCraft\\_runtime'
 elif system == "Darwin":
-    MEI_TEMP = '~/Library/Application Support/SpecterCraft/_runtime'
+    MEI_TEMP = str(Path.home() / 'Library' / 'Application Support' / 'SpecterCraft' / '_runtime')
 else:
-    MEI_TEMP = '~/.spectercraft/_runtime'
+    MEI_TEMP = str(Path.home() / '.spectercraft' / '_runtime')
 
 a = Analysis(
     ['launcher/main.py'],
