@@ -20,11 +20,13 @@ from PyQt6.QtCore import (
 from PyQt6.QtGui import (
     QBrush,
     QColor,
+    QDesktopServices,
     QFont,
     QFontDatabase,
     QIcon,
     QPainter,
     QPixmap,
+    QUrl,
 )
 from PyQt6.QtWidgets import (
     QApplication,
@@ -38,6 +40,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QSpinBox,
     QStackedWidget,
+    QStyle,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -56,7 +59,6 @@ from launcher.minecraft import (
 CONFIG_PATH = Path(MC_DIR) / "config.json"
 SERVER_URL = "http://104.239.83.122:8000"
 SECRET_KEY = "AsiriGizliKimseninBilmemesiGerektigiTokenBuradaysanGelistiricilereKatil!"
-CRASH_LOG = Path(MC_DIR) / "crash.log"
 
 # ── Asset paths ─────────────────────────────────────────────────────
 
@@ -81,9 +83,8 @@ ANIM_LOGO_DURATION = 450  # ms for logo fly-between animation
 
 def log(msg):
     """Append a message to the crash log."""
-    CRASH_LOG.parent.mkdir(parents=True, exist_ok=True)
-    with open(CRASH_LOG, "a", encoding="utf-8") as f:
-        f.write(msg + "\n")
+    from launcher.minecraft import _log
+    _log(msg)
 
 
 def load_config():
@@ -510,6 +511,16 @@ class MainWindow(QWidget):
         top_bar.addWidget(user_badge)
         top_bar.addStretch()
 
+        self.folder_btn = QPushButton()
+        self.folder_btn.setObjectName("folderBtn")
+        self.folder_btn.setFixedSize(40, 40)
+        self.folder_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.folder_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon))
+        self.folder_btn.setIconSize(QSize(20, 20))
+        self.folder_btn.setToolTip("Oyun dizinini aç")
+        self.folder_btn.clicked.connect(self._open_directory)
+        top_bar.addWidget(self.folder_btn)
+
         self.options_btn = QPushButton()
         self.options_btn.setObjectName("optionsBtn")
         self.options_btn.setFixedSize(40, 40)
@@ -571,6 +582,9 @@ class MainWindow(QWidget):
         self.options_panel.toggle()
         if self.options_panel.isVisible():
             self.options_panel.move(self.width() - self.options_panel.width() - 30, 80)
+
+    def _open_directory(self):
+        QDesktopServices.openUrl(QUrl.fromLocalFile(MC_DIR))
 
     # ── Install ───────────────────────────────────────────────────
 
@@ -865,7 +879,7 @@ class Launcher(QMainWindow):
     def _apply_stylesheet(self):
         self.setStyleSheet("""
             /* ── Global ─────────────────────────────────────── */
-            * { font-family: 'Unbounded', 'Helvetica Neue', 'Segoe UI', Arial, sans-serif; }
+            * { font-family: 'Unbounded', 'Helvetica Neue', 'Ubuntu', 'Segoe UI', Arial, sans-serif; }
             QWidget { background-color: transparent; color: #d8d8d8; }
 
             /* ── Login card ─────────────────────────────────── */
@@ -879,7 +893,7 @@ class Launcher(QMainWindow):
             #usernameInput:hover { border: 2px solid rgba(90, 120, 90, 160); }
 
             /* ── Buttons ─────────────────────────────────────── */
-            QPushButton { font-family: 'Unbounded', 'Helvetica Neue', 'Segoe UI', Arial, sans-serif; }
+            QPushButton { font-family: 'Unbounded', 'Helvetica Neue', 'Ubuntu', 'Segoe UI', Arial, sans-serif; }
 
             #playBtn { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #4a6a4a, stop:1 #5a7a5a); color: white; border: none; border-radius: 10px; font-size: 17px; font-weight: 700; letter-spacing: 1px; text-align: center; }
             #playBtn:hover { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #5a8a5a, stop:1 #6a9a6a); }
@@ -902,6 +916,8 @@ class Launcher(QMainWindow):
             #statusLabel { font-size: 12px; color: #a0a0a0; }
             #optionsBtn { background: rgba(20, 20, 25, 180); border: 2px solid rgba(80, 90, 80, 120); border-radius: 10px; color: #a0a0a0; font-size: 20px; }
             #optionsBtn:hover { border-color: #6a9a6a; color: #6a9a6a; }
+            #folderBtn { background: rgba(20, 20, 25, 180); border: 2px solid rgba(80, 90, 80, 120); border-radius: 10px; color: #a0a0a0; font-size: 20px; }
+            #folderBtn:hover { border-color: #6a9a6a; color: #6a9a6a; }
             #userBadge { background: rgba(20, 20, 25, 180); border: 2px solid rgba(80, 90, 80, 120); border-radius: 10px; }
 
             /* ── Progress bar ───────────────────────────────── */
@@ -967,7 +983,7 @@ def main():
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
 
-    # Load the Unbounded font, fall back to system font
+    # Load the Unbounded font, fall back to platform defaults
     try:
         font_id = QFontDatabase.addApplicationFont(str(FONT_PATH))
         if font_id != -1:

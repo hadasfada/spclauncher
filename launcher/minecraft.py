@@ -1,6 +1,7 @@
 import os
 import platform
 import subprocess
+from datetime import datetime
 from pathlib import Path
 
 import minecraft_launcher_lib
@@ -22,16 +23,28 @@ else:
     MC_DIR = str(Path.home() / ".spectercraft")
 
 LOG_FILE = Path(MC_DIR) / "crash.log"
+MAX_LOG_LINES = 500
 
 
 # ── Utility functions ───────────────────────────────────────────────
 
 
 def _log(msg):
-    """Append a timestamped message to the crash log."""
+    """Append a timestamped message to the crash log, rotating if too large."""
     LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open(LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(f"[LaunchWorker] {msg}\n")
+        f.write(f"[{timestamp}] {msg}\n")
+    _rotate_log()
+
+
+def _rotate_log():
+    """Keep only the last MAX_LOG_LINES lines if the log exceeds the limit."""
+    if not LOG_FILE.exists():
+        return
+    lines = LOG_FILE.read_text(encoding="utf-8").splitlines()
+    if len(lines) > MAX_LOG_LINES:
+        LOG_FILE.write_text("\n".join(lines[-MAX_LOG_LINES:]) + "\n", encoding="utf-8")
 
 
 def get_java_path():
@@ -323,6 +336,8 @@ class LaunchWorker(QThread):
             popen_kwargs = {"cwd": MC_DIR}
             if system == "Windows":
                 popen_kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+            else:
+                popen_kwargs["start_new_session"] = True
 
             self._process = subprocess.Popen(cmd, **popen_kwargs)
             _log(f"subprocess started pid={self._process.pid}")
@@ -339,7 +354,11 @@ class LaunchWorker(QThread):
             self.error.emit(str(e))
 
     def kill(self):
-        """Terminate the running Minecraft process."""
+        """Terminate the running Minecraft process gracefully."""
         if self._process and self._process.poll() is None:
-            self._process.kill()
+            self._process.terminate()
+            try:
+                self._process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self._process.kill()
             self._process = None

@@ -3,7 +3,6 @@ import hashlib
 import hmac
 import time
 from pathlib import Path
-from typing import Union
 
 import requests
 
@@ -88,40 +87,6 @@ class ModDownloader:
         files = resp.json().get("files", {})
         return {name: base64.b64decode(data) for name, data in files.items()}
 
-    # ── Mod synchronization ─────────────────────────────────────────
-
-    def sync_mods(self, mods_dir: Union[str, Path], progress_cb=None) -> list:
-        """Download missing/outdated mods and remove stale ones."""
-        mods_dir = Path(mods_dir)
-        mods_dir.mkdir(parents=True, exist_ok=True)
-
-        manifest = self.get_manifest()
-        downloaded_files: list = []
-
-        # Download any mods that are missing or have wrong hash
-        for mod in manifest:
-            name, expected_sha = mod["filename"], mod["sha256"]
-            local_path = mods_dir / name
-
-            if local_path.exists() and _sha256(local_path) == expected_sha:
-                continue
-
-            self.download_mod(name, mods_dir, progress_cb)
-
-            if not local_path.exists() or _sha256(local_path) != expected_sha:
-                raise RuntimeError(f"Integrity check failed for {name}")
-
-            downloaded_files.append(name)
-
-        # Remove local mods not in the manifest (but only if manifest is non-empty
-        # to prevent accidentally wiping all mods on a server error)
-        if manifest:
-            manifest_names = {m["filename"] for m in manifest}
-            for local_file in mods_dir.glob("*.jar"):
-                if local_file.name not in manifest_names:
-                    local_file.unlink()
-
-        return downloaded_files
 
 
 # ── Helpers ─────────────────────────────────────────────────────────
