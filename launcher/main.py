@@ -939,7 +939,10 @@ class Launcher(QMainWindow):
 def _excepthook(exc_type, exc_value, exc_tb):
     msg = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
     log(msg)
-    QMessageBox.critical(None, "SpecterCraft Hata", msg)
+    # Only show QMessageBox from the main thread
+    import threading
+    if threading.current_thread() is threading.main_thread():
+        QMessageBox.critical(None, "SpecterCraft Hata", msg)
 
 
 def _thread_excepthook(args):
