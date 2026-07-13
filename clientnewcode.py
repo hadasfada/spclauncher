@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import time
 from pathlib import Path
+from typing import Union
 
 import requests
 
@@ -89,13 +90,13 @@ class ModDownloader:
 
     # ── Mod synchronization ─────────────────────────────────────────
 
-    def sync_mods(self, mods_dir: str | Path, progress_cb=None) -> list[str]:
+    def sync_mods(self, mods_dir: Union[str, Path], progress_cb=None) -> list:
         """Download missing/outdated mods and remove stale ones."""
         mods_dir = Path(mods_dir)
         mods_dir.mkdir(parents=True, exist_ok=True)
 
         manifest = self.get_manifest()
-        downloaded_files: list[str] = []
+        downloaded_files: list = []
 
         # Download any mods that are missing or have wrong hash
         for mod in manifest:
