@@ -944,10 +944,9 @@ def _excepthook(exc_type, exc_value, exc_tb):
 
 def _thread_excepthook(args):
     msg = "".join(
-        traceback.format_exception(args.exc_type, args.exc_value, args.exc_traceback)
+        traceback.format_exception(args.exc_type, args.exc_value, args.traceback)
     )
     log(msg)
-    QMessageBox.critical(None, "SpecterCraft Hata", msg)
 
 
 # ── Entry point ─────────────────────────────────────────────────────
