@@ -103,22 +103,26 @@ class InstallWorker(QThread):
 
             # Step 3: Install NeoForge (if not already present)
             _log("InstallWorker: step 3 - checking NeoForge")
-            neoforge = minecraft_launcher_lib.mod_loader.get_mod_loader("neoforge")
-            existing_neoforge = find_neoforge()
-
-            if existing_neoforge is None:
-                java_path = get_java_path()
-                _log(f"InstallWorker: java_path={java_path}")
-                try:
-                    neoforge.install(MC_VERSION, MC_DIR, callback=callback, java=java_path)
-                    _log("InstallWorker: step 3 done - NeoForge installed")
-                    emit("NeoForge installed")
-                except Exception as e:
-                    _log(f"InstallWorker: NeoForge install failed: {e}")
-                    emit(f"NeoForge install failed: {e}")
+            if not hasattr(minecraft_launcher_lib, "mod_loader"):
+                _log("InstallWorker: minecraft-launcher-lib too old, needs >=7.0 for NeoForge")
+                emit("NeoForge skipped: needs Python 3.10+ and minecraft-launcher-lib>=8.0")
             else:
-                _log(f"InstallWorker: step 3 done - NeoForge {existing_neoforge} found")
-                emit(f"NeoForge {existing_neoforge} found")
+                neoforge = minecraft_launcher_lib.mod_loader.get_mod_loader("neoforge")
+                existing_neoforge = find_neoforge()
+
+                if existing_neoforge is None:
+                    java_path = get_java_path()
+                    _log(f"InstallWorker: java_path={java_path}")
+                    try:
+                        neoforge.install(MC_VERSION, MC_DIR, callback=callback, java=java_path)
+                        _log("InstallWorker: step 3 done - NeoForge installed")
+                        emit("NeoForge installed")
+                    except Exception as e:
+                        _log(f"InstallWorker: NeoForge install failed: {e}")
+                        emit(f"NeoForge install failed: {e}")
+                else:
+                    _log(f"InstallWorker: step 3 done - NeoForge {existing_neoforge} found")
+                    emit(f"NeoForge {existing_neoforge} found")
 
             # Step 4: Sync mods from server
             _log("InstallWorker: step 4 - syncing mods")
