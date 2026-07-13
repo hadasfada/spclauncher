@@ -515,11 +515,12 @@ class MainWindow(QWidget):
         self.folder_btn.setObjectName("folderBtn")
         self.folder_btn.setFixedSize(40, 40)
         self.folder_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.folder_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon))
+        self.folder_btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DirIcon))
         self.folder_btn.setIconSize(QSize(20, 20))
         self.folder_btn.setToolTip("Oyun dizinini aç")
         self.folder_btn.clicked.connect(self._open_directory)
         top_bar.addWidget(self.folder_btn)
+        top_bar.addSpacing(10)
 
         self.options_btn = QPushButton()
         self.options_btn.setObjectName("optionsBtn")
