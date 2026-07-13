@@ -73,6 +73,7 @@ class InstallWorker(QThread):
             self.progress.emit(status, prog, maxv)
 
         try:
+            _log("InstallWorker: starting")
             # Callbacks for minecraft_launcher_lib progress reporting
             callback = {
                 "setStatus": lambda s: emit(status=s),
@@ -81,50 +82,67 @@ class InstallWorker(QThread):
             }
 
             # Step 1: Install Minecraft
+            _log("InstallWorker: step 1 - installing Minecraft")
             Path(MC_DIR).mkdir(parents=True, exist_ok=True)
             minecraft_launcher_lib.install.install_minecraft_version(
                 MC_VERSION, MC_DIR, callback=callback
             )
+            _log("InstallWorker: step 1 done")
 
             # Step 2: Install JVM runtime
+            _log("InstallWorker: step 2 - installing Java runtime")
             emit("Installing Java runtime...")
             try:
                 minecraft_launcher_lib.runtime.install_jvm_runtime(
                     "java-runtime-delta", MC_DIR, callback=callback
                 )
+                _log("InstallWorker: step 2 done")
             except Exception as e:
+                _log(f"InstallWorker: Java runtime install failed: {e}")
                 emit(f"Java runtime install failed: {e}")
 
             # Step 3: Install NeoForge (if not already present)
+            _log("InstallWorker: step 3 - checking NeoForge")
             neoforge = minecraft_launcher_lib.mod_loader.get_mod_loader("neoforge")
             existing_neoforge = find_neoforge()
 
             if existing_neoforge is None:
+                java_path = get_java_path()
+                _log(f"InstallWorker: java_path={java_path}")
                 try:
-                    neoforge.install(MC_VERSION, MC_DIR, callback=callback, java=get_java_path())
+                    neoforge.install(MC_VERSION, MC_DIR, callback=callback, java=java_path)
+                    _log("InstallWorker: step 3 done - NeoForge installed")
                     emit("NeoForge installed")
                 except Exception as e:
+                    _log(f"InstallWorker: NeoForge install failed: {e}")
                     emit(f"NeoForge install failed: {e}")
             else:
+                _log(f"InstallWorker: step 3 done - NeoForge {existing_neoforge} found")
                 emit(f"NeoForge {existing_neoforge} found")
 
             # Step 4: Sync mods from server
+            _log("InstallWorker: step 4 - syncing mods")
             if self.server_url and self.secret_key:
                 try:
                     self._sync_mods(emit)
                     self._sync_options(emit)
                     self._sync_config(emit)
+                    _log("InstallWorker: step 4 done")
                     self.sync_result.emit(True, "")
                 except Exception as e:
+                    _log(f"InstallWorker: Mod sync failed: {e}")
                     emit(f"Mod sync failed: {e}")
                     self.sync_result.emit(False, str(e))
             else:
+                _log("InstallWorker: step 4 skipped - no server")
                 self.sync_result.emit(True, "")
 
         except Exception as e:
+            _log(f"InstallWorker: CRASH: {e}")
             emit(f"Install failed: {e}")
             self.sync_result.emit(False, str(e))
 
+        _log("InstallWorker: finished")
         emit("ready")
 
     def _sync_mods(self, emit):
