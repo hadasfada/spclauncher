@@ -72,50 +72,58 @@ class InstallWorker(QThread):
         def emit(status="", prog=-1, maxv=-1):
             self.progress.emit(status, prog, maxv)
 
-        # Callbacks for minecraft_launcher_lib progress reporting
-        callback = {
-            "setStatus": lambda s: emit(status=s),
-            "setProgress": lambda v: emit(prog=v),
-            "setMax": lambda v: emit(maxv=v),
-        }
-
-        # Step 1: Install Minecraft
-        Path(MC_DIR).mkdir(parents=True, exist_ok=True)
-        minecraft_launcher_lib.install.install_minecraft_version(
-            MC_VERSION, MC_DIR, callback=callback
-        )
-
-        # Step 2: Install JVM runtime
-        emit("Installing Java runtime...")
         try:
-            minecraft_launcher_lib.runtime.install_jvm_runtime(
-                "java-runtime-delta", MC_DIR, callback=callback
+            # Callbacks for minecraft_launcher_lib progress reporting
+            callback = {
+                "setStatus": lambda s: emit(status=s),
+                "setProgress": lambda v: emit(prog=v),
+                "setMax": lambda v: emit(maxv=v),
+            }
+
+            # Step 1: Install Minecraft
+            Path(MC_DIR).mkdir(parents=True, exist_ok=True)
+            minecraft_launcher_lib.install.install_minecraft_version(
+                MC_VERSION, MC_DIR, callback=callback
             )
-        except Exception as e:
-            emit(f"Java runtime install failed: {e}")
 
-        # Step 3: Install NeoForge (if not already present)
-        neoforge = minecraft_launcher_lib.mod_loader.get_mod_loader("neoforge")
-        existing_neoforge = find_neoforge()
-
-        if existing_neoforge is None:
-            neoforge.install(MC_VERSION, MC_DIR, callback=callback, java=get_java_path())
-            emit("NeoForge installed")
-        else:
-            emit(f"NeoForge {existing_neoforge} found")
-
-        # Step 4: Sync mods from server
-        if self.server_url and self.secret_key:
+            # Step 2: Install JVM runtime
+            emit("Installing Java runtime...")
             try:
-                self._sync_mods(emit)
-                self._sync_options(emit)
-                self._sync_config(emit)
-                self.sync_result.emit(True, "")
+                minecraft_launcher_lib.runtime.install_jvm_runtime(
+                    "java-runtime-delta", MC_DIR, callback=callback
+                )
             except Exception as e:
-                emit(f"Mod sync failed: {e}")
-                self.sync_result.emit(False, str(e))
-        else:
-            self.sync_result.emit(True, "")
+                emit(f"Java runtime install failed: {e}")
+
+            # Step 3: Install NeoForge (if not already present)
+            neoforge = minecraft_launcher_lib.mod_loader.get_mod_loader("neoforge")
+            existing_neoforge = find_neoforge()
+
+            if existing_neoforge is None:
+                try:
+                    neoforge.install(MC_VERSION, MC_DIR, callback=callback, java=get_java_path())
+                    emit("NeoForge installed")
+                except Exception as e:
+                    emit(f"NeoForge install failed: {e}")
+            else:
+                emit(f"NeoForge {existing_neoforge} found")
+
+            # Step 4: Sync mods from server
+            if self.server_url and self.secret_key:
+                try:
+                    self._sync_mods(emit)
+                    self._sync_options(emit)
+                    self._sync_config(emit)
+                    self.sync_result.emit(True, "")
+                except Exception as e:
+                    emit(f"Mod sync failed: {e}")
+                    self.sync_result.emit(False, str(e))
+            else:
+                self.sync_result.emit(True, "")
+
+        except Exception as e:
+            emit(f"Install failed: {e}")
+            self.sync_result.emit(False, str(e))
 
         emit("ready")
 
