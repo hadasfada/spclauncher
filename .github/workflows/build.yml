@@ -27,7 +27,7 @@ jobs:
           name: SpecterCraft-Windows
           path: dist/SpecterCraft.exe
 
-  build-macos:
+  build-macos-arm:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -43,10 +43,55 @@ jobs:
         run: pyinstaller spectercraft.spec --noconfirm
 
       - name: Zip .app bundle
-        run: cd dist && ditto -c -k --sequesterRsrc --keepParent SpecterCraft.app SpecterCraft-macOS.zip
+        run: cd dist && ditto -c -k --sequesterRsrc --keepParent SpecterCraft.app SpecterCraft-macOS-arm64.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SpecterCraft-macOS
-          path: dist/SpecterCraft-macOS.zip
+          name: SpecterCraft-macOS-arm64
+          path: dist/SpecterCraft-macOS-arm64.zip
+
+  build-macos-intel:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Build
+        run: pyinstaller spectercraft.spec --noconfirm
+
+      - name: Zip .app bundle
+        run: cd dist && ditto -c -k --sequesterRsrc --keepParent SpecterCraft.app SpecterCraft-macOS-intel.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SpecterCraft-macOS-intel
+          path: dist/SpecterCraft-macOS-intel.zip
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Build
+        run: pyinstaller spectercraft.spec --noconfirm
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SpecterCraft-Linux
+          path: dist/SpecterCraft
