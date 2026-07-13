@@ -15,6 +15,7 @@ from PyQt6.QtCore import (
     QSize,
     Qt,
     QTimer,
+    QUrl,
     pyqtProperty,
 )
 from PyQt6.QtGui import (
@@ -26,7 +27,6 @@ from PyQt6.QtGui import (
     QIcon,
     QPainter,
     QPixmap,
-    QUrl,
 )
 from PyQt6.QtWidgets import (
     QApplication,
