@@ -3,9 +3,11 @@ import hashlib
 import hmac
 import os
 import time
+from collections import defaultdict
+from datetime import date
 from pathlib import Path
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 
@@ -15,6 +17,32 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 MODS_DIRECTORY = os.environ.get("SC_MODS_DIR", "/home/hadas/mods")
 SECRET_KEY = os.environ.get("SC_SECRET_KEY")
 SIGNATURE_MAX_AGE = 300
+DAILY_DOWNLOAD_LIMIT = 2000
+
+
+# ── Rate limiter ────────────────────────────────────────────────────
+
+_download_counts: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+_last_cleanup: float = 0.0
+
+
+def _check_rate_limit(ip: str):
+    global _last_cleanup
+    today = date.today().isoformat()
+
+    # Periodically drop stale entries to prevent memory leaks
+    if time.time() - _last_cleanup > 3600:
+        stale = [k for k, v in _download_counts.items() if today not in v]
+        for k in stale:
+            del _download_counts[k]
+        _last_cleanup = time.time()
+
+    _download_counts[ip][today] += 1
+    if _download_counts[ip][today] > DAILY_DOWNLOAD_LIMIT:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Daily download limit of {DAILY_DOWNLOAD_LIMIT} reached. Try again tomorrow.",
+        )
 
 
 def _get_secret():
@@ -62,9 +90,10 @@ async def get_manifest(x_launcher_auth: str = Header(None)):
 
 
 @app.get("/download/{filename}")
-async def download_mod(filename: str, x_launcher_auth: str = Header(None)):
+async def download_mod(filename: str, request: Request, x_launcher_auth: str = Header(None)):
     secret = _get_secret()
     _verify_auth(x_launcher_auth, secret, f"/download/{filename}")
+    _check_rate_limit(request.client.host)
 
     if "/" in filename or "\\" in filename or ".." in filename:
         raise HTTPException(status_code=400, detail="Invalid filename.")
