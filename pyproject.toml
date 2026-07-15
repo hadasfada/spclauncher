@@ -1,7 +1,7 @@
 [project]
-name = "minecraft-launcher"
-version = "1.0.0"
-description = "A minimalistic Minecraft launcher with fluid animations"
+name = "spc-launcher"
+version = "0.1"
+description = "herhangi bi launcher"
 requires-python = ">=3.10"
 dependencies = [
     "PyQt6>=6.6.0",

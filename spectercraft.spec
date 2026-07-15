@@ -12,13 +12,13 @@ else:
     MEI_TEMP = '~/.spectercraft/_runtime'
 
 a = Analysis(
-    ['launcher/main.py'],
+    ['run.py'],
     pathex=[],
     binaries=[],
     datas=[
         ('assets', 'assets'),
     ],
-    hiddenimports=['clientnewcode'],
+    hiddenimports=['clientnewcode', 'launcher', 'launcher.minecraft'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

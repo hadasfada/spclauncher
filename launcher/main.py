@@ -9,7 +9,6 @@ from pathlib import Path
 from PyQt6.QtCore import (
     QEasingCurve,
     QParallelAnimationGroup,
-    QPoint,
     QPropertyAnimation,
     QRect,
     QSize,
@@ -73,8 +72,7 @@ FONT_PATH = ASSETS_DIR / "fonts" / "Unbounded.ttf"
 
 # ── UI constants ────────────────────────────────────────────────────
 
-LOGO_SIZE = 56           # Size of the animated logo (login + main)
-ANIM_LOGO_DURATION = 450  # ms for logo fly-between animation
+LOGO_SIZE = 56
 
 
 # ── Helpers ─────────────────────────────────────────────────────────
@@ -107,15 +105,10 @@ class AnimatedLogo(QLabel):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._logo_visible = True
         self.setFixedSize(48, 48)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
         self._pixmap = QPixmap(str(LOGO_PATH))
 
     def paintEvent(self, event):
-        if not self._logo_visible:
-            return
-
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
@@ -185,7 +178,7 @@ class ServerStatusWidget(QFrame):
 
         painter.setBrush(QBrush(dot_color))
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.drawEllipse(1, 4, 10, 10)
+        painter.drawEllipse(6, 4, 10, 10)
         painter.end()
 
 
@@ -700,7 +693,8 @@ class Launcher(QMainWindow):
         self.config = load_config()
         self.setWindowTitle("SpecterCraft")
         self.setWindowIcon(QIcon(str(LOGO_PATH)))
-        self.setMinimumSize(800, 520)
+        self.setMinimumSize(900, 560)
+        self.setMaximumSize(900, 560)
         self.resize(900, 560)
 
         self.stack = QStackedWidget()
@@ -710,8 +704,6 @@ class Launcher(QMainWindow):
         self.stack.addWidget(self.login_window)
 
         self.main_window = None
-        self._floating_logo = None
-        self._logo_anim = None
 
         self._apply_stylesheet()
 
@@ -723,12 +715,12 @@ class Launcher(QMainWindow):
     def _on_login(self, username):
         self.config["username"] = username
         save_config(self.config)
-        self._animate_logo_to_main(username)
+        self._show_main(username)
 
     def _on_logout(self):
         self.config["username"] = ""
         save_config(self.config)
-        self._animate_logo_to_login()
+        self._show_login()
 
     def _show_login(self):
         self.login_window = LoginWindow(self.config, self._on_login)
@@ -740,83 +732,6 @@ class Launcher(QMainWindow):
         self.main_window = MainWindow(self.config, username, self._on_logout)
         self.stack.addWidget(self.main_window)
         self.stack.setCurrentWidget(self.main_window)
-
-    # ── Logo fly-between animation ────────────────────────────────
-
-    def _animate_logo_to_main(self, username):
-        self.login_window._logo.hide()
-        self._show_main(username)
-        self._animate_logo(
-            start_widget=self.login_window._logo,
-            end_widget=self.main_window.findChild(AnimatedLogo),
-            on_finished=lambda: self._finish_logo_anim(self.main_window),
-        )
-
-    def _animate_logo_to_login(self):
-        self._show_login()
-        self._animate_logo(
-            start_widget=(
-                self.main_window.findChild(AnimatedLogo) if self.main_window else None
-            ),
-            end_widget=self.login_window._logo,
-            on_finished=lambda: self._finish_logo_anim(self.login_window),
-            end_card=self.login_window._card,
-        )
-
-    def _animate_logo(self, start_widget, end_widget, on_finished, end_card=None):
-        """Animate the logo flying from one widget to another."""
-        if not start_widget or not end_widget:
-            on_finished()
-            return
-
-        # Capture start position
-        start_g = start_widget.mapToGlobal(QPoint(0, 0))
-        start_widget._logo_visible = False
-        start_widget.update()
-
-        # Ensure end widget has up-to-date geometry
-        if end_card:
-            end_card.updateGeometry()
-        QApplication.processEvents()
-
-        # Capture end position
-        end_g = end_widget.mapToGlobal(QPoint(0, 0))
-        end_widget._logo_visible = False
-        end_widget.update()
-
-        # Convert global positions to local coordinates
-        start_in = self.mapFromGlobal(start_g)
-        end_in = self.mapFromGlobal(end_g)
-        start_rect = QRect(start_in.x(), start_in.y(), LOGO_SIZE, LOGO_SIZE)
-        end_rect = QRect(end_in.x(), end_in.y(), LOGO_SIZE, LOGO_SIZE)
-
-        # Create the floating logo label that animates between positions
-        self._floating_logo = QLabel(self)
-        self._floating_logo.setPixmap(QPixmap(str(LOGO_PATH)))
-        self._floating_logo.setFixedSize(LOGO_SIZE, LOGO_SIZE)
-        self._floating_logo.setScaledContents(True)
-        self._floating_logo.setGeometry(start_rect)
-        self._floating_logo.raise_()
-        self._floating_logo.show()
-
-        self._logo_anim = QPropertyAnimation(self._floating_logo, b"geometry")
-        self._logo_anim.setDuration(ANIM_LOGO_DURATION)
-        self._logo_anim.setStartValue(start_rect)
-        self._logo_anim.setEndValue(end_rect)
-        self._logo_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
-        self._logo_anim.finished.connect(on_finished)
-        self._logo_anim.start()
-
-    def _finish_logo_anim(self, target_widget):
-        """Restore the logo visibility in the target widget and clean up."""
-        if target_widget:
-            logo = target_widget.findChild(AnimatedLogo)
-            if logo:
-                logo._logo_visible = True
-                logo.update()
-        if self._floating_logo:
-            self._floating_logo.deleteLater()
-            self._floating_logo = None
 
     # ── Stylesheet ────────────────────────────────────────────────
 
