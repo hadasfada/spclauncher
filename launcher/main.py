@@ -16,7 +16,6 @@ from PyQt6.QtCore import (
     Qt,
     QTimer,
     QUrl,
-    pyqtProperty,
 )
 from PyQt6.QtGui import (
     QBrush,
@@ -104,52 +103,14 @@ def save_config(cfg):
 
 
 class AnimatedLogo(QLabel):
-    """Logo that scales up and glows on hover."""
+    """Logo widget used in login and main screens."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._scale = 1.0
-        self._glow = 0.0
         self._logo_visible = True
         self.setFixedSize(48, 48)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self._pixmap = QPixmap(str(LOGO_PATH))
-
-        self._scale_anim = QPropertyAnimation(self, b"logoScale")
-        self._scale_anim.setDuration(300)
-        self._scale_anim.setEasingCurve(QEasingCurve.Type.OutBack)
-
-        self._glow_anim = QPropertyAnimation(self, b"glowIntensity")
-        self._glow_anim.setDuration(300)
-        self._glow_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
-
-    # Qt properties for animation
-    logoScale = pyqtProperty(
-        float,
-        lambda self: self._scale,
-        lambda self, v: (setattr(self, "_scale", v), self.update()),
-    )
-    glowIntensity = pyqtProperty(
-        float,
-        lambda self: self._glow,
-        lambda self, v: (setattr(self, "_glow", v), self.update()),
-    )
-
-    def _start_anim(self, scale_end, glow_end):
-        self._scale_anim.stop()
-        self._scale_anim.setStartValue(self._scale)
-        self._scale_anim.setEndValue(scale_end)
-        self._scale_anim.start()
-        self._glow_anim.stop()
-        self._glow_anim.setStartValue(self._glow)
-        self._glow_anim.setEndValue(glow_end)
-        self._glow_anim.start()
-
-    def enterEvent(self, event):
-        self._start_anim(1.15, 1.0)
-
-    def leaveEvent(self, event):
-        self._start_anim(1.0, 0.0)
 
     def paintEvent(self, event):
         if not self._logo_visible:
@@ -157,25 +118,7 @@ class AnimatedLogo(QLabel):
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        cx, cy = self.width() / 2, self.height() / 2
 
-        # Draw glow rings
-        if self._glow > 0.01:
-            for i in range(4, 0, -1):
-                glow_color = QColor(120, 160, 120)
-                glow_color.setAlphaF(self._glow * 0.06 * i)
-                painter.setBrush(QBrush(glow_color))
-                painter.setPen(Qt.PenStyle.NoPen)
-                painter.drawEllipse(
-                    QPoint(int(cx), int(cy)), 20 + i * 4, 20 + i * 4
-                )
-
-        # Apply scale transform
-        painter.translate(cx, cy)
-        painter.scale(self._scale, self._scale)
-        painter.translate(-cx, -cy)
-
-        # Draw the logo image
         if not self._pixmap.isNull():
             scaled = self._pixmap.scaled(
                 self.size(),

@@ -41,7 +41,7 @@ def _check_rate_limit(ip: str):
     if _download_counts[ip][today] > DAILY_DOWNLOAD_LIMIT:
         raise HTTPException(
             status_code=429,
-            detail=f"Daily download limit of {DAILY_DOWNLOAD_LIMIT} reached. Try again tomorrow.",
+            detail=f"Daily download limit reached. Try again later.",
         )
 
 
