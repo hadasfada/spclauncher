@@ -217,7 +217,7 @@ class OptionsPanel(QFrame):
         layout.addSpacing(16)
 
         # RAM spinner
-        ram_label = QLabel("Tahsis Edilen RAM (MB)")
+        ram_label = QLabel("Ayırt Edilen RAM (MB)")
         ram_label.setObjectName("fieldLabel")
         layout.addWidget(ram_label)
         layout.addSpacing(8)
@@ -297,7 +297,7 @@ class LoginWindow(QWidget):
         # Centered card
         self._card = QFrame(self)
         self._card.setObjectName("loginCard")
-        self._card.setFixedSize(440, 420)
+        self._card.resize(440, 420)
 
         layout = QVBoxLayout(self._card)
         layout.setContentsMargins(24, 36, 24, 36)
@@ -379,6 +379,7 @@ class LoginWindow(QWidget):
             anim.setEasingCurve(QEasingCurve.Type.OutCubic)
             self._grow_group.addAnimation(anim)
 
+        self._grow_group.finished.connect(lambda: self._card.setFixedSize(440, 420))
         self._grow_group.start()
 
     def _login(self):
@@ -497,7 +498,7 @@ class MainWindow(QWidget):
         bottom_row.addWidget(self.server_status)
         bottom_row.addStretch()
 
-        self.play_btn = MinecraftButton("Oynat")
+        self.play_btn = MinecraftButton("Oyna")
         self.play_btn.setFixedSize(260, 52)
         self.play_btn.clicked.connect(self._on_play)
         bottom_row.addWidget(self.play_btn)
@@ -562,7 +563,7 @@ class MainWindow(QWidget):
         self.install_worker = None
         self.status_label.setText("")
         self.play_btn.setEnabled(True)
-        self.play_btn.setText("Oynat")
+        self.play_btn.setText("Oyna")
         self.options_btn.setEnabled(True)
 
     # ── Play / verify / launch ────────────────────────────────────
@@ -601,7 +602,7 @@ class MainWindow(QWidget):
 
         # Mods don't match — tell the user to fix them
         self.play_btn.setEnabled(True)
-        self.play_btn.setText("Oynat")
+        self.play_btn.setText("Oyna")
         self.options_btn.setEnabled(True)
         self.status_label.setText(
             "Modlar sunucuyla eşleşmiyor, modlarınızı doğrulayın"
@@ -659,7 +660,7 @@ class MainWindow(QWidget):
             self.play_btn.clicked.disconnect()
             self.play_btn.clicked.connect(self._on_kill)
         else:
-            self.play_btn.setText("Oynat")
+            self.play_btn.setText("Oyna")
             self.play_btn.setObjectName("playBtn")
             self.options_btn.setEnabled(True)
             self.play_btn.clicked.disconnect()
