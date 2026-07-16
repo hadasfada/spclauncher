@@ -9,6 +9,7 @@ from pathlib import Path
 from PyQt6.QtCore import (
     QEasingCurve,
     QParallelAnimationGroup,
+    QPoint,
     QPropertyAnimation,
     QRect,
     QSize,
@@ -248,20 +249,42 @@ class OptionsPanel(QFrame):
         self.config["java_args"] = self.java_input.toPlainText().strip()
         self.config["ram_mb"] = self.ram_spin.value()
         save_config(self.config)
-        self.hide()
+        self._slide_out()
 
     def _logout(self):
-        self.hide()
+        self._slide_out()
         self.on_logout()
 
     def toggle(self):
         if self.isVisible():
-            self.hide()
+            self._slide_out()
         else:
             self.java_input.setPlainText(self.config.get("java_args", ""))
             self.ram_spin.setValue(self.config.get("ram_mb", 4096))
-            self.show()
-            self.raise_()
+            self._slide_in()
+
+    def _slide_in(self):
+        self.raise_()
+        self.show()
+        start_pos = self.pos() + QPoint(0, -self.height())
+        end_pos = self.pos()
+        self._slide_anim = QPropertyAnimation(self, b"pos")
+        self._slide_anim.setDuration(200)
+        self._slide_anim.setStartValue(start_pos)
+        self._slide_anim.setEndValue(end_pos)
+        self._slide_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._slide_anim.start()
+
+    def _slide_out(self):
+        start_pos = self.pos()
+        end_pos = self.pos() + QPoint(0, -self.height())
+        self._slide_anim = QPropertyAnimation(self, b"pos")
+        self._slide_anim.setDuration(200)
+        self._slide_anim.setStartValue(start_pos)
+        self._slide_anim.setEndValue(end_pos)
+        self._slide_anim.setEasingCurve(QEasingCurve.Type.InCubic)
+        self._slide_anim.finished.connect(self.hide)
+        self._slide_anim.start()
 
 
 class MinecraftButton(QPushButton):
@@ -517,9 +540,11 @@ class MainWindow(QWidget):
     # ── Options panel ─────────────────────────────────────────────
 
     def _toggle_options(self):
-        self.options_panel.toggle()
         if self.options_panel.isVisible():
+            self.options_panel.toggle()
+        else:
             self.options_panel.move(self.width() - self.options_panel.width() - 30, 80)
+            self.options_panel.toggle()
 
     def _open_directory(self):
         QDesktopServices.openUrl(QUrl.fromLocalFile(MC_DIR))
