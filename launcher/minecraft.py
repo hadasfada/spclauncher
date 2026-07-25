@@ -13,6 +13,7 @@ from clientnewcode import ModDownloader, _sha256
 
 system = platform.system()
 MC_VERSION = "1.21.1"
+NEOFORGE_VERSION = "21.1.235"
 
 if system == "Windows":
     _appdata = os.getenv("APPDATA")
@@ -123,7 +124,7 @@ class InstallWorker(QThread):
                 java_path = get_java_path()
                 _log(f"InstallWorker: java_path={java_path}")
                 try:
-                    neoforge.install(MC_VERSION, MC_DIR, callback=callback, java=java_path)
+                    neoforge.install(MC_VERSION, MC_DIR, loader_version=f"{NEOFORGE_VERSION}", callback=callback, java=java_path)
                     _log("InstallWorker: step 3 done - NeoForge installed")
                     emit("NeoForge installed")
                 except Exception as e:
