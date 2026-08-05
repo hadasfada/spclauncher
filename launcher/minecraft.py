@@ -13,7 +13,7 @@ from clientnewcode import ModDownloader, _sha256
 
 system = platform.system()
 MC_VERSION = "1.21.1"
-NEOFORGE_VERSION = "21.1.235"
+NEOFORGE_VERSION = "21.1.232"
 
 if system == "Windows":
     _appdata = os.getenv("APPDATA")
