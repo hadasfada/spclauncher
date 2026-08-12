@@ -215,8 +215,10 @@ class InstallWorker(QThread):
         files = dl.get_config()
         config_dir = Path(MC_DIR) / "config"
         config_dir.mkdir(parents=True, exist_ok=True)
-        for name, content in files.items():
-            (config_dir / name).write_bytes(content)
+        for rel, content in files.items():
+            dest = config_dir / rel
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(content)
         emit("Config synced")
 
 
