@@ -56,7 +56,7 @@ from launcher.minecraft import (
 # ── Configuration ───────────────────────────────────────────────────
 
 CONFIG_PATH = Path(MC_DIR) / "config.json"
-SERVER_URL = "http://104.239.83.122:8000"
+SERVER_URL = "http://launcher.spectercraft.net"
 SECRET_KEY = "AsiriGizliKimseninBilmemesiGerektigiTokenBuradaysanGelistiricilereKatil!"
 
 # ── Asset paths ─────────────────────────────────────────────────────

@@ -92,4 +92,5 @@ else:
         codesign_identity=None,
         entitlements_file=None,
         icon=None,
+        version='version_info.txt',
     )
