@@ -7,7 +7,7 @@ from pathlib import Path
 import minecraft_launcher_lib
 from PyQt6.QtCore import QThread, pyqtSignal
 
-from clientnewcode import ModDownloader, _sha256
+from launcher.clientnewcode import ModDownloader, _sha256
 
 # ── Constants ───────────────────────────────────────────────────────
 
@@ -51,8 +51,7 @@ def _rotate_log():
 def get_java_path():
     """Return the path to the bundled Java executable using the launcher lib."""
     try:
-        path = minecraft_launcher_lib.runtime.get_executable_path("java-runtime-delta", MC_DIR)
-        return path
+        return minecraft_launcher_lib.runtime.get_executable_path("java-runtime-delta", MC_DIR)
     except Exception:
         return None
 
@@ -62,9 +61,9 @@ def find_neoforge():
     versions_dir = Path(MC_DIR) / "versions"
     if not versions_dir.exists():
         return None
-    for name in os.listdir(str(versions_dir)):
-        if "neoforge" in name:
-            return name
+    for entry in versions_dir.iterdir():
+        if "neoforge" in entry.name:
+            return entry.name
     return None
 
 
@@ -75,7 +74,6 @@ class InstallWorker(QThread):
     """Installs Minecraft, NeoForge, and syncs mods from the server."""
 
     progress = pyqtSignal(str, int, int)    # (status_text, progress, max)
-    sync_result = pyqtSignal(bool, str)     # (success, error_message)
 
     def __init__(self, server_url=None, secret_key=None):
         super().__init__()
@@ -88,7 +86,6 @@ class InstallWorker(QThread):
 
         try:
             _log("InstallWorker: starting")
-            # Callbacks for minecraft_launcher_lib progress reporting
             callback = {
                 "setStatus": lambda s: emit(status=s),
                 "setProgress": lambda v: emit(prog=v),
@@ -124,7 +121,7 @@ class InstallWorker(QThread):
                 java_path = get_java_path()
                 _log(f"InstallWorker: java_path={java_path}")
                 try:
-                    neoforge.install(MC_VERSION, MC_DIR, loader_version=f"{NEOFORGE_VERSION}", callback=callback, java=java_path)
+                    neoforge.install(MC_VERSION, MC_DIR, loader_version=NEOFORGE_VERSION, callback=callback, java=java_path)
                     _log("InstallWorker: step 3 done - NeoForge installed")
                     emit("NeoForge installed")
                 except Exception as e:
@@ -138,30 +135,26 @@ class InstallWorker(QThread):
             _log("InstallWorker: step 4 - syncing mods")
             if self.server_url and self.secret_key:
                 try:
-                    self._sync_mods(emit)
-                    self._sync_options(emit)
-                    self._sync_config(emit)
+                    dl = ModDownloader(self.server_url, self.secret_key)
+                    self._sync_mods(emit, dl)
+                    self._sync_options(emit, dl)
+                    self._sync_config(emit, dl)
                     _log("InstallWorker: step 4 done")
-                    self.sync_result.emit(True, "")
                 except Exception as e:
                     _log(f"InstallWorker: Mod sync failed: {e}")
                     emit(f"Mod sync failed: {e}")
-                    self.sync_result.emit(False, str(e))
             else:
                 _log("InstallWorker: step 4 skipped - no server")
-                self.sync_result.emit(True, "")
 
         except Exception as e:
             _log(f"InstallWorker: CRASH: {e}")
             emit(f"Install failed: {e}")
-            self.sync_result.emit(False, str(e))
 
         _log("InstallWorker: finished")
         emit("ready")
 
-    def _sync_mods(self, emit):
+    def _sync_mods(self, emit, dl: ModDownloader):
         """Download/verify mods and remove stale files."""
-        dl = ModDownloader(self.server_url, self.secret_key)
         emit("Checking mods...")
 
         manifest = dl.get_manifest()
@@ -169,7 +162,6 @@ class InstallWorker(QThread):
         mods_dir = Path(MC_DIR) / "mods"
         mods_dir.mkdir(parents=True, exist_ok=True)
 
-        # Download or verify each mod
         bytes_processed = 0
         for mod in manifest:
             name = mod["filename"]
@@ -198,24 +190,19 @@ class InstallWorker(QThread):
 
         emit("Mods synced")
 
-    def _sync_options(self, emit):
+    def _sync_options(self, emit, dl: ModDownloader):
         """Fetch options.txt from the server and write it to the game directory."""
         emit("Syncing options...")
-        dl = ModDownloader(self.server_url, self.secret_key)
-        content = dl.get_options()
         options_path = Path(MC_DIR) / "options.txt"
-        options_path.parent.mkdir(parents=True, exist_ok=True)
-        options_path.write_text(content, encoding="utf-8")
+        options_path.write_text(dl.get_options(), encoding="utf-8")
         emit("Options synced")
 
-    def _sync_config(self, emit):
+    def _sync_config(self, emit, dl: ModDownloader):
         """Fetch config files from the server and write them to the game directory."""
         emit("Syncing config...")
-        dl = ModDownloader(self.server_url, self.secret_key)
-        files = dl.get_config()
         config_dir = Path(MC_DIR) / "config"
         config_dir.mkdir(parents=True, exist_ok=True)
-        for rel, content in files.items():
+        for rel, content in dl.get_config().items():
             dest = config_dir / rel
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_bytes(content)
@@ -259,25 +246,19 @@ class ModVerifyWorker(QThread):
     def run(self):
         try:
             mods_dir = Path(MC_DIR) / "mods"
-            dl = ModDownloader(self.server_url, self.secret_key)
-            manifest = dl.get_manifest()
+            manifest = ModDownloader(self.server_url, self.secret_key).get_manifest()
 
-            # Build expected mod map: {filename: sha256}
             expected = {m["filename"]: m["sha256"] for m in manifest}
-
-            # Get list of locally installed mod filenames
             local_names = (
                 {f.name for f in mods_dir.glob("*.jar")}
                 if mods_dir.exists()
                 else set()
             )
 
-            # Check for extra or missing mods
             if local_names != set(expected.keys()):
                 self.verify_result.emit(False, "mismatch")
                 return
 
-            # Check each mod's hash
             for name, expected_sha in expected.items():
                 if _sha256(mods_dir / name) != expected_sha:
                     self.verify_result.emit(False, "mismatch")
@@ -291,7 +272,6 @@ class ModVerifyWorker(QThread):
 class LaunchWorker(QThread):
     """Launches Minecraft with the given username, JVM args, and RAM."""
 
-    finished = pyqtSignal()
     error = pyqtSignal(str)
     process_started = pyqtSignal(object)
     process_exited = pyqtSignal()
@@ -302,6 +282,7 @@ class LaunchWorker(QThread):
         self.java_args = java_args
         self.ram_mb = ram_mb
         self._process = None
+        self._killed = False
 
     def run(self):
         try:
@@ -309,7 +290,6 @@ class LaunchWorker(QThread):
             neoforge = find_neoforge()
             _log(f"java_path={java_path} neoforge={neoforge}")
 
-            # Build Minecraft launch options
             options = {
                 "username": self.username,
                 "uuid": "a126cc8a-0616-4743-b3c7-f4217b13e545",
@@ -319,14 +299,17 @@ class LaunchWorker(QThread):
             if java_path and Path(java_path).exists():
                 options["executablePath"] = java_path
 
-            # Build JVM arguments
-            args = self.java_args.split() if self.java_args else []
-            args.insert(0, f"-Xmx{self.ram_mb}M")
-            args.insert(1, f"-Xms{self.ram_mb}M")
-            args.insert(2, "-Duser.language=en -Duser.country=US -Duser.variant=US")
-            options["jvmArguments"] = args
+            # Prepend memory and locale flags before any user-supplied args
+            jvm_defaults = [
+                f"-Xmx{self.ram_mb}M",
+                f"-Xms{self.ram_mb}M",
+                "-Duser.language=en",
+                "-Duser.country=US",
+                "-Duser.variant=US",
+            ]
+            user_args = self.java_args.split() if self.java_args else []
+            options["jvmArguments"] = jvm_defaults + user_args
 
-            # Get launch command and start process
             cmd = minecraft_launcher_lib.command.get_minecraft_command(
                 neoforge, MC_DIR, options
             )
@@ -342,11 +325,11 @@ class LaunchWorker(QThread):
             _log(f"subprocess started pid={self._process.pid}")
 
             self.process_started.emit(self._process)
-            self.finished.emit()
-
             self._process.wait()
             self._process = None
-            self.process_exited.emit()
+
+            if not self._killed:
+                self.process_exited.emit()
 
         except Exception as e:
             _log(f"ERROR: {e}")
@@ -355,6 +338,7 @@ class LaunchWorker(QThread):
     def kill(self):
         """Terminate the running Minecraft process gracefully."""
         if self._process and self._process.poll() is None:
+            self._killed = True
             self._process.terminate()
             try:
                 self._process.wait(timeout=5)

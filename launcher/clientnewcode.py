@@ -88,7 +88,6 @@ class ModDownloader:
         return {name: base64.b64decode(data) for name, data in files.items()}
 
 
-
 # ── Helpers ─────────────────────────────────────────────────────────
 
 

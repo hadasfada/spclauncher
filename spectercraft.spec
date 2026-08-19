@@ -18,7 +18,7 @@ a = Analysis(
     datas=[
         ('assets', 'assets'),
     ],
-    hiddenimports=['clientnewcode', 'launcher', 'launcher.minecraft'],
+    hiddenimports=['launcher', 'launcher.clientnewcode', 'launcher.minecraft'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

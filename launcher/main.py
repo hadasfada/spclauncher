@@ -101,7 +101,7 @@ def save_config(cfg):
 # ── Custom widgets ──────────────────────────────────────────────────
 
 
-class AnimatedLogo(QLabel):
+class LogoWidget(QLabel):
     """Logo widget used in login and main screens."""
 
     def __init__(self, parent=None):
@@ -326,7 +326,7 @@ class LoginWindow(QWidget):
         layout.setContentsMargins(24, 36, 24, 36)
         layout.setSpacing(20)
 
-        self._logo = AnimatedLogo()
+        self._logo = LogoWidget()
         self._logo.setFixedSize(LOGO_SIZE, LOGO_SIZE)
 
         self._title = QLabel("SpecterCraft'a hoş geldiniz")
@@ -372,7 +372,9 @@ class LoginWindow(QWidget):
 
     def _animate_elements(self):
         """Grow-in animation for the card and its children."""
-        self._grow_group = QParallelAnimationGroup()
+        # Parent to self so the group is destroyed with this widget,
+        # preventing the finished signal from firing on deleted C++ objects.
+        self._grow_group = QParallelAnimationGroup(self)
         cw, ch = self._card.width(), self._card.height()
         cx, cy = (self.width() - cw) // 2, (self.height() - ch) // 2
 
@@ -402,8 +404,14 @@ class LoginWindow(QWidget):
             anim.setEasingCurve(QEasingCurve.Type.OutCubic)
             self._grow_group.addAnimation(anim)
 
-        self._grow_group.finished.connect(lambda: self._card.setFixedSize(440, 420))
+        self._grow_group.finished.connect(self._on_grow_done)
         self._grow_group.start()
+
+    def _on_grow_done(self):
+        try:
+            self._card.setFixedSize(440, 420)
+        except RuntimeError:
+            pass  # widget was deleted before the animation finished
 
     def _login(self):
         username = self.username_input.text().strip()
@@ -540,11 +548,9 @@ class MainWindow(QWidget):
     # ── Options panel ─────────────────────────────────────────────
 
     def _toggle_options(self):
-        if self.options_panel.isVisible():
-            self.options_panel.toggle()
-        else:
+        if not self.options_panel.isVisible():
             self.options_panel.move(self.width() - self.options_panel.width() - 30, 80)
-            self.options_panel.toggle()
+        self.options_panel.toggle()
 
     def _open_directory(self):
         QDesktopServices.openUrl(QUrl.fromLocalFile(MC_DIR))
@@ -702,6 +708,30 @@ class MainWindow(QWidget):
             self._set_running(False)
             self.status_label.setText("Minecraft durduruldu")
             QTimer.singleShot(3000, lambda: self.status_label.setText(""))
+            # process_exited won't fire after kill() — worker suppresses it
+            self.launch_worker = None
+
+    def cleanup(self):
+        """Disconnect and stop all background workers before this widget is destroyed."""
+        if hasattr(self, '_server_checker') and self._server_checker is not None:
+            try:
+                self._server_checker.check_result.disconnect()
+            except RuntimeError:
+                pass
+            self._server_checker.quit()
+            self._server_checker = None
+
+        if self.install_worker is not None:
+            try:
+                self.install_worker.progress.disconnect()
+                self.install_worker.finished.disconnect()
+            except RuntimeError:
+                pass
+            self.install_worker = None
+
+        if self.launch_worker is not None:
+            self.launch_worker.kill()
+            self.launch_worker = None
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -749,9 +779,20 @@ class Launcher(QMainWindow):
         self._show_login()
 
     def _show_login(self):
+        # Stop workers before the MainWindow is torn down
+        if self.main_window is not None:
+            self.main_window.cleanup()
+            self.stack.removeWidget(self.main_window)
+            self.main_window.deleteLater()
+            self.main_window = None
+
+        old = self.login_window
         self.login_window = LoginWindow(self.config, self._on_login)
         self.stack.addWidget(self.login_window)
         self.stack.setCurrentWidget(self.login_window)
+        if old is not None:
+            self.stack.removeWidget(old)
+            old.deleteLater()
         self.login_window._center_card()
 
     def _show_main(self, username):
